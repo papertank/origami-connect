@@ -12,7 +12,7 @@
         "php": ">=5.4.0",
         "illuminate/http": "~5.0",
         "illuminate/support": "~5.0",
-        "guzzlehttp/guzzle": "~4.0|~5.0",
+        "guzzlehttp/guzzle": "~5.0|~6.0",
         "league/oauth1-client": "~1.0"
     },
     "require-dev": {
@@ -26,6 +26,7 @@
     },
     "extra": {
         "branch-alias": {
+            "dev-master": "2.0-dev",
             "dev-1.0": "1.0-dev"
         }
     },
