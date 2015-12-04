@@ -135,11 +135,17 @@ abstract class AbstractProvider implements ProviderContract {
 			throw new InvalidStateException;
 		}
 
+		$token = $this->getAccessToken($this->getCode());
+
 		$user = $this->mapUserToObject($this->getUserByToken(
-			$token = $this->getAccessToken($this->getCode())
+			$this->parseAccessToken($token)
 		));
 
-		return $user->setToken($token);
+		if ( $this->parseRefreshToken($token) ) {
+			$user->setRefreshToken($this->parseRefreshToken($token));
+		}
+
+		return $user->setToken($this->parseAccessToken($token));
 	}
 
 	/**
@@ -167,7 +173,7 @@ abstract class AbstractProvider implements ProviderContract {
 			'body' => $this->getTokenFields($code),
 		]);
 
-		return $this->parseAccessToken($response->getBody());
+		return json_decode($response->getBody(), true);
 	}
 
 	/**
@@ -190,9 +196,28 @@ abstract class AbstractProvider implements ProviderContract {
 	 * @param  string  $body
 	 * @return string
 	 */
-	protected function parseAccessToken($body)
+	public function parseAccessToken($body)
 	{
-		return json_decode($body, true)['access_token'];
+		if ( is_string($body) ) {
+			$body = json_decode($body, true);
+		}
+
+		return $body['access_token'];
+	}
+
+	/**
+	 * Get the refresh token from the token response body.
+	 *
+	 * @param  string  $body
+	 * @return string
+	 */
+	public function parseRefreshToken($body)
+	{
+		if ( is_string($body) ) {
+			$body = json_decode($body, true);
+		}
+
+		return $body['refresh_token'];
 	}
 
 	/**

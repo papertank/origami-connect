@@ -39,17 +39,28 @@ class FacebookProvider extends AbstractProvider implements ProviderInterface {
 			'query' => $this->getTokenFields($code),
 		]);
 
-		return $this->parseAccessToken($response->getBody());
+		return (string) $response->getBody();
 	}
 
 	/**
 	 * {@inheritdoc}
 	 */
-	protected function parseAccessToken($body)
+	public function parseAccessToken($body)
 	{
 		parse_str($body);
 
 		return $access_token;
+	}
+
+	/**
+	 * Get the refresh token from the token response body.
+	 *
+	 * @param  string  $body
+	 * @return string
+	 */
+	public function parseRefreshToken($body)
+	{
+		return null;
 	}
 
 	/**

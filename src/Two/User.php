@@ -12,6 +12,13 @@ class User extends ConnectUser {
 	public $token;
 
 	/**
+	 * The user's refresh token
+	 *
+	 * @var string
+	 */
+	public $refresh;
+
+	/**
 	 * Set the token on the user.
 	 *
 	 * @param  string  $token
@@ -22,6 +29,29 @@ class User extends ConnectUser {
 		$this->token = $token;
 
 		return $this;
+	}
+
+	/**
+	 * Set the refresh token on the user.
+	 *
+	 * @param  string  $token
+	 * @return $this
+	 */
+	public function setRefreshToken($refresh)
+	{
+		$this->refresh = $refresh;
+
+		return $this;
+	}
+
+	/**
+	 * Get the refresh token for the user.
+	 *
+	 * @return string
+	 */
+	public function getRefreshToken()
+	{
+		return $this->refresh;
 	}
 
 }
