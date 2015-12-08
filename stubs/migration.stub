@@ -1,0 +1,46 @@
+<?php
+
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Migrations\Migration;
+
+class CreateConnectTables extends Migration
+{
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
+        Schema::create('auth', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('user_id')->unsigned();
+            $table->string('name');
+            $table->string('identifier')->nullable()->index();
+            $table->text('options')->nullable();
+            $table->timestamps();
+            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+        });
+
+        Schema::create('auth_tokens', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('auth_id')->unsigned();
+            $table->string('token', 300)->index();
+            $table->string('refresh_token', 300)->nullable();
+            $table->timestamps();
+            $table->timestamp('expires_at')->nullable();
+            $table->foreign('auth_id')->references('id')->on('auth')->onDelete('cascade');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        Schema::drop('auth_tokens');
+        Schema::drop('auth');
+    }
+}

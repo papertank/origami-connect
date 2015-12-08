@@ -1,269 +1,361 @@
-<?php namespace Origami\Connect\Two;
+<?php
 
+namespace Origami\Connect\Two;
+
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
+use GuzzleHttp\ClientInterface;
+use Origami\Connect\Token;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Origami\Connect\Contracts\Provider as ProviderContract;
 
-abstract class AbstractProvider implements ProviderContract {
+abstract class AbstractProvider implements ProviderContract
+{
+    /**
+     * The HTTP request instance.
+     *
+     * @var Request
+     */
+    protected $request;
 
-	/**
-	 * The client ID.
-	 *
-	 * @var string
-	 */
-	protected $clientId;
+    /**
+     * The client ID.
+     *
+     * @var string
+     */
+    protected $clientId;
 
-	/**
-	 * The client secret.
-	 *
-	 * @var string
-	 */
-	protected $clientSecret;
+    /**
+     * The client secret.
+     *
+     * @var string
+     */
+    protected $clientSecret;
 
-	/**
-	 * The scopes being requested.
-	 *
-	 * @var array
-	 */
-	protected $scopes = [];
+    /**
+     * The redirect URL.
+     *
+     * @var string
+     */
+    protected $redirectUrl;
 
-	/**
-	 * The HTTP request instance.
-	 *
-	 * @var Request
-	 */
-	protected $request;
+    /**
+     * The custom parameters to be sent with the request.
+     *
+     * @var array
+     */
+    protected $parameters = [];
 
-	/**
-	 * Create a new provider instance.
-	 *
-	 * @param  Request  $request
-	 * @param  string  $clientId
-	 * @param  string  $clientSecret
-	 * @param  string  $redirectUrl
-	 * @return void
-	 */
-	public function __construct(Request $request, $clientId, $clientSecret, $redirectUrl)
-	{
-		$this->request = $request;
-		$this->clientId = $clientId;
-		$this->redirectUrl = $redirectUrl;
-		$this->clientSecret = $clientSecret;
-	}
+    /**
+     * The scopes being requested.
+     *
+     * @var array
+     */
+    protected $scopes = [];
 
-	/**
-	 * Get the authentication URL for the provider.
-	 *
-	 * @param  string  $state
-	 * @return string
-	 */
-	abstract protected function getAuthUrl($state);
+    /**
+     * The separating character for the requested scopes.
+     *
+     * @var string
+     */
+    protected $scopeSeparator = ',';
 
-	/**
-	 * Get the token URL for the provider.
-	 *
-	 * @return string
-	 */
-	abstract protected function getTokenUrl();
+    /**
+     * The type of the encoding in the query.
+     *
+     * @var int Can be either PHP_QUERY_RFC3986 or PHP_QUERY_RFC1738.
+     */
+    protected $encodingType = PHP_QUERY_RFC1738;
 
-	/**
-	 * Get the raw user for the given access token.
-	 *
-	 * @param  string  $token
-	 * @return array
-	 */
-	abstract public function getUserByToken($token);
+    /**
+     * Indicates if the session state should be utilized.
+     *
+     * @var bool
+     */
+    protected $stateless = false;
 
-	/**
-	 * Map the raw user array to a Connect User instance.
-	 *
-	 * @param  array  $user
-	 * @return \Origami\Connect\User
-	 */
-	abstract public function mapUserToObject(array $user);
+    /**
+     * Create a new provider instance.
+     *
+     * @param  Request  $request
+     * @param  string  $clientId
+     * @param  string  $clientSecret
+     * @param  string  $redirectUrl
+     * @return void
+     */
+    public function __construct(Request $request, $clientId, $clientSecret, $redirectUrl)
+    {
+        $this->request = $request;
+        $this->clientId = $clientId;
+        $this->redirectUrl = $redirectUrl;
+        $this->clientSecret = $clientSecret;
+    }
 
-	/**
-	 * Redirect the user of the application to the provider's authentication screen.
-	 *
-	 * @return \Illuminate\Http\RedirectResponse
-	 */
-	public function redirect()
-	{
-		$this->request->getSession()->set(
-			'state', $state = sha1(time().$this->request->getSession()->get('_token'))
-		);
+    /**
+     * Get the authentication URL for the provider.
+     *
+     * @param  string  $state
+     * @return string
+     */
+    abstract protected function getAuthUrl($state);
 
-		return new RedirectResponse($this->getAuthUrl($state));
-	}
+    /**
+     * Get the token URL for the provider.
+     *
+     * @return string
+     */
+    abstract protected function getTokenUrl();
 
-	/**
-	 * Get the authentication URL for the provider.
-	 *
-	 * @param  string  $url
-	 * @param  string  $state
-	 * @return string
-	 */
-	protected function buildAuthUrlFromBase($url, $state)
-	{
-		$session = $this->request->getSession();
+    /**
+     * Get the raw user for the given access token.
+     *
+     * @param Token $token
+     * @return array
+     */
+    abstract protected function getUserByToken(Token $token);
 
-		return $url.'?'.http_build_query([
-			'client_id' => $this->clientId, 'redirect_uri' => $this->redirectUrl,
-			'scope' => $this->formatScopes($this->scopes), 'state' => $state,
-			'response_type' => 'code',
-		]);
-	}
+    /**
+     * Map the raw user array to a User instance.
+     *
+     * @param  array  $user
+     * @return \Origami\Connect\Two\User
+     */
+    abstract protected function mapUserToObject(array $user);
 
-	/**
-	 * Format the given scopes.
-	 *
-	 * @param  array  $scopes
-	 * @return string
-	 */
-	protected function formatScopes(array $scopes)
-	{
-		return implode(',', $scopes);
-	}
+    /**
+     * Redirect the user of the application to the provider's authentication screen.
+     *
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function redirect()
+    {
+        $state = null;
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function user()
-	{
-		if ($this->hasInvalidState())
-		{
-			throw new InvalidStateException;
-		}
+        if ($this->usesState()) {
+            $this->request->getSession()->set('state', $state = Str::random(40));
+        }
 
-		$token = $this->getAccessToken($this->getCode());
+        return new RedirectResponse($this->getAuthUrl($state));
+    }
 
-		$user = $this->mapUserToObject($this->getUserByToken(
-			$this->parseAccessToken($token)
-		));
+    /**
+     * Get the authentication URL for the provider.
+     *
+     * @param  string  $url
+     * @param  string  $state
+     * @return string
+     */
+    protected function buildAuthUrlFromBase($url, $state)
+    {
+        return $url.'?'.http_build_query($this->getCodeFields($state), '', '&', $this->encodingType);
+    }
 
-		if ( $this->parseRefreshToken($token) ) {
-			$user->setRefreshToken($this->parseRefreshToken($token));
-		}
+    /**
+     * Get the GET parameters for the code request.
+     *
+     * @param  string|null  $state
+     * @return array
+     */
+    protected function getCodeFields($state = null)
+    {
+        $fields = [
+            'client_id' => $this->clientId, 'redirect_uri' => $this->redirectUrl,
+            'scope' => $this->formatScopes($this->scopes, $this->scopeSeparator),
+            'response_type' => 'code',
+        ];
 
-		return $user->setToken($this->parseAccessToken($token));
-	}
+        if ($this->usesState()) {
+            $fields['state'] = $state;
+        }
 
-	/**
-	 * Determine if the current request / session has a mismatching "state".
-	 *
-	 * @return bool
-	 */
-	protected function hasInvalidState()
-	{
-		$session = $this->request->getSession();
+        return array_merge($fields, $this->parameters);
+    }
 
-		return ! ($this->request->input('state') === $session->get('state'));
-	}
+    /**
+     * Format the given scopes.
+     *
+     * @param  array  $scopes
+     * @param  string  $scopeSeparator
+     * @return string
+     */
+    protected function formatScopes(array $scopes, $scopeSeparator)
+    {
+        return implode($scopeSeparator, $scopes);
+    }
 
-	/**
-	 * Get the access token for the given code.
-	 *
-	 * @param  string  $code
-	 * @return string
-	 */
-	public function getAccessToken($code)
-	{
-		$response = $this->getHttpClient()->post($this->getTokenUrl(), [
-			'headers' => ['Accept' => 'application/json'],
-			'body' => $this->getTokenFields($code),
-		]);
+    /**
+     * {@inheritdoc}
+     */
+    public function user()
+    {
+        if ($this->hasInvalidState()) {
+            throw new InvalidStateException;
+        }
 
-		return json_decode($response->getBody(), true);
-	}
+        $user = $this->mapUserToObject($this->getUserByToken(
+            $token = $this->getAccessToken($this->getCode())
+        ));
 
-	/**
-	 * Get the POST fields for the token request.
-	 *
-	 * @param  string  $code
-	 * @return array
-	 */
-	protected function getTokenFields($code)
-	{
-		return [
-			'client_id' => $this->clientId, 'client_secret' => $this->clientSecret,
-			'code' => $code, 'redirect_uri' => $this->redirectUrl
-		];
-	}
+        return $user->setToken($token);
+    }
 
-	/**
-	 * Get the access token from the token response body.
-	 *
-	 * @param  string  $body
-	 * @return string
-	 */
-	public function parseAccessToken($body)
-	{
-		if ( is_string($body) ) {
-			$body = json_decode($body, true);
-		}
+    /**
+     * Determine if the current request / session has a mismatching "state".
+     *
+     * @return bool
+     */
+    protected function hasInvalidState()
+    {
+        if ($this->isStateless()) {
+            return false;
+        }
 
-		return $body['access_token'];
-	}
+        $state = $this->request->getSession()->pull('state');
 
-	/**
-	 * Get the refresh token from the token response body.
-	 *
-	 * @param  string  $body
-	 * @return string
-	 */
-	public function parseRefreshToken($body)
-	{
-		if ( is_string($body) ) {
-			$body = json_decode($body, true);
-		}
+        return ! (strlen($state) > 0 && $this->request->input('state') === $state);
+    }
 
-		return $body['refresh_token'];
-	}
+    /**
+     * Get the access token for the given code.
+     *
+     * @param  string  $code
+     * @return Token
+     */
+    public function getAccessToken($code)
+    {
+        $postKey = (version_compare(ClientInterface::VERSION, '6') === 1) ? 'form_params' : 'body';
 
-	/**
-	 * Get the code from the request.
-	 *
-	 * @return string
-	 */
-	protected function getCode()
-	{
-		return $this->request->input('code');
-	}
+        $response = $this->getHttpClient()->post($this->getTokenUrl(), [
+            'headers' => ['Accept' => 'application/json'],
+            $postKey => $this->getTokenFields($code),
+        ]);
 
-	/**
-	 * Set the scopes of the requested access.
-	 *
-	 * @param  array  $scopes
-	 * @return $this
-	 */
-	public function scopes(array $scopes)
-	{
-		$this->scopes = $scopes;
+        return $this->parseAccessToken($response->getBody());
+    }
 
-		return $this;
-	}
+    /**
+     * Get the POST fields for the token request.
+     *
+     * @param  string  $code
+     * @return array
+     */
+    protected function getTokenFields($code)
+    {
+        return [
+            'client_id' => $this->clientId, 'client_secret' => $this->clientSecret,
+            'code' => $code, 'redirect_uri' => $this->redirectUrl,
+        ];
+    }
 
-	/**
-	 * Get a fresh instance of the Guzzle HTTP client.
-	 *
-	 * @return \GuzzleHttp\Client
-	 */
-	protected function getHttpClient()
-	{
-		return new \GuzzleHttp\Client;
-	}
+    /**
+     * Get the access token from the token response body.
+     *
+     * @param  string  $body
+     * @return Token
+     */
+    protected function parseAccessToken($body)
+    {
+        return Token::make($body);
+    }
 
-	/**
-	 * Set the request instance.
-	 *
-	 * @param  Request  $request
-	 * @return $this
-	 */
-	public function setRequest(Request $request)
-	{
-		$this->request = $request;
+    /**
+     * Get the code from the request.
+     *
+     * @return string
+     */
+    protected function getCode()
+    {
+        return $this->request->input('code');
+    }
 
-		return $this;
-	}
+    /**
+     * Set the scopes of the requested access.
+     *
+     * @param  array  $scopes
+     * @return $this
+     */
+    public function scopes(array $scopes)
+    {
+        $this->scopes = array_unique(array_merge($this->scopes, $scopes));
 
+        return $this;
+    }
+
+    /**
+     * Get the current scopes.
+     *
+     * @return array
+     */
+    public function getScopes()
+    {
+        return $this->scopes;
+    }
+
+    /**
+     * Get a fresh instance of the Guzzle HTTP client.
+     *
+     * @return \GuzzleHttp\Client
+     */
+    protected function getHttpClient()
+    {
+        return new \GuzzleHttp\Client;
+    }
+
+    /**
+     * Set the request instance.
+     *
+     * @param  Request  $request
+     * @return $this
+     */
+    public function setRequest(Request $request)
+    {
+        $this->request = $request;
+
+        return $this;
+    }
+
+    /**
+     * Determine if the provider is operating with state.
+     *
+     * @return bool
+     */
+    protected function usesState()
+    {
+        return ! $this->stateless;
+    }
+
+    /**
+     * Determine if the provider is operating as stateless.
+     *
+     * @return bool
+     */
+    protected function isStateless()
+    {
+        return $this->stateless;
+    }
+
+    /**
+     * Indicates that the provider should operate as stateless.
+     *
+     * @return $this
+     */
+    public function stateless()
+    {
+        $this->stateless = true;
+
+        return $this;
+    }
+
+    /**
+     * Set the custom parameters of the request.
+     *
+     * @param  array  $parameters
+     * @return $this
+     */
+    public function with(array $parameters)
+    {
+        $this->parameters = $parameters;
+
+        return $this;
+    }
 }

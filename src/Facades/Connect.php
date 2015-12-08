@@ -1,4 +1,6 @@
-<?php namespace Origami\Connect\Facades;
+<?php 
+
+namespace Origami\Connect\Facades;
 
 use Illuminate\Support\Facades\Facade;
 

@@ -1,6 +1,9 @@
-<?php namespace Origami\Connect;
+<?php 
+
+namespace Origami\Connect;
 
 use Illuminate\Support\ServiceProvider;
+use Origami\Connect\Console\ConnectTablesCommand;
 
 class ConnectServiceProvider extends ServiceProvider {
 
@@ -22,6 +25,12 @@ class ConnectServiceProvider extends ServiceProvider {
 		{
 			return new ConnectManager($app);
 		});
+
+		$this->app->singleton('command.connect.tables', function($app)
+		{
+			return new ConnectTablesCommand($app['files'], $app['composer']);
+		});
+		$this->commands('command.connect.tables');
 	}
 
 	/**
@@ -31,7 +40,7 @@ class ConnectServiceProvider extends ServiceProvider {
 	 */
 	public function provides()
 	{
-		return ['Origami\Connect\Contracts\Factory'];
+		return ['command.connect.tables', 'Origami\Connect\Contracts\Factory'];
 	}
 
 }

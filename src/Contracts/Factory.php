@@ -1,4 +1,6 @@
-<?php namespace Origami\Connect\Contracts;
+<?php 
+
+namespace Origami\Connect\Contracts;
 
 interface Factory {
 

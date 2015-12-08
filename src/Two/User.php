@@ -1,30 +1,26 @@
-<?php namespace Origami\Connect\Two;
+<?php 
 
-use Origami\Connect\ConnectUser;
+namespace Origami\Connect\Two;
 
-class User extends ConnectUser {
+use Origami\Connect\AbstractUser;
+use Origami\Connect\Token;
+
+class User extends AbstractUser {
 
 	/**
 	 * The user's access token.
 	 *
-	 * @var string
+	 * @var Token
 	 */
 	public $token;
 
 	/**
-	 * The user's refresh token
-	 *
-	 * @var string
-	 */
-	public $refresh;
-
-	/**
 	 * Set the token on the user.
 	 *
-	 * @param  string  $token
+	 * @param Token $token
 	 * @return $this
 	 */
-	public function setToken($token)
+	public function setToken(Token $token)
 	{
 		$this->token = $token;
 
@@ -32,26 +28,13 @@ class User extends ConnectUser {
 	}
 
 	/**
-	 * Set the refresh token on the user.
+	 * Get the user's token
 	 *
-	 * @param  string  $token
-	 * @return $this
+	 * @return Token
 	 */
-	public function setRefreshToken($refresh)
+	public function getToken()
 	{
-		$this->refresh = $refresh;
-
-		return $this;
-	}
-
-	/**
-	 * Get the refresh token for the user.
-	 *
-	 * @return string
-	 */
-	public function getRefreshToken()
-	{
-		return $this->refresh;
+		return $this->token;
 	}
 
 }

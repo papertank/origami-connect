@@ -1,91 +1,151 @@
-<?php namespace Origami\Connect\Two;
+<?php
 
-use Symfony\Component\HttpFoundation\RedirectResponse;
+namespace Origami\Connect\Two;
 
-class FacebookProvider extends AbstractProvider implements ProviderInterface {
+class FacebookProvider extends AbstractProvider implements ProviderInterface
+{
+    /**
+     * The base Facebook Graph URL.
+     *
+     * @var string
+     */
+    protected $graphUrl = 'https://graph.facebook.com';
 
-	/**
-	 * The scopes being requested.
-	 *
-	 * @var array
-	 */
-	protected $scopes = ['email'];
+    /**
+     * The Graph API version for the request.
+     *
+     * @var string
+     */
+    protected $version = 'v2.5';
 
-	/**
-	 * {@inheritdoc}
-	 */
-	protected function getAuthUrl($state)
-	{
-		return $this->buildAuthUrlFromBase('https://www.facebook.com/dialog/oauth', $state);
-	}
+    /**
+     * The user fields being requested.
+     *
+     * @var array
+     */
+    protected $fields = ['name', 'email', 'gender', 'verified'];
 
-	/**
-	 * {@inheritdoc}
-	 */
-	protected function getTokenUrl()
-	{
-		return 'https://graph.facebook.com/oauth/access_token';
-	}
+    /**
+     * The scopes being requested.
+     *
+     * @var array
+     */
+    protected $scopes = ['email'];
 
-	/**
-	 * Get the access token for the given code.
-	 *
-	 * @param  string  $code
-	 * @return string
-	 */
-	public function getAccessToken($code)
-	{
-		$response = $this->getHttpClient()->get($this->getTokenUrl(), [
-			'query' => $this->getTokenFields($code),
-		]);
+    /**
+     * Display the dialog in a popup view.
+     *
+     * @var bool
+     */
+    protected $popup = false;
 
-		return (string) $response->getBody();
-	}
+    /**
+     * {@inheritdoc}
+     */
+    protected function getAuthUrl($state)
+    {
+        return $this->buildAuthUrlFromBase('https://www.facebook.com/'.$this->version.'/dialog/oauth', $state);
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function parseAccessToken($body)
-	{
-		parse_str($body);
+    /**
+     * {@inheritdoc}
+     */
+    protected function getTokenUrl()
+    {
+        return $this->graphUrl.'/oauth/access_token';
+    }
 
-		return $access_token;
-	}
+    /**
+     * Get the access token for the given code.
+     *
+     * @param  string  $code
+     * @return string
+     */
+    public function getAccessToken($code)
+    {
+        $response = $this->getHttpClient()->get($this->getTokenUrl(), [
+            'query' => $this->getTokenFields($code),
+        ]);
 
-	/**
-	 * Get the refresh token from the token response body.
-	 *
-	 * @param  string  $body
-	 * @return string
-	 */
-	public function parseRefreshToken($body)
-	{
-		return null;
-	}
+        return $this->parseAccessToken($response->getBody());
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function getUserByToken($token)
-	{
-		$response = $this->getHttpClient()->get('https://graph.facebook.com/me?access_token='.$token, [
-			'headers' => [
-				'Accept' => 'application/json',
-			],
-		]);
+    /**
+     * {@inheritdoc}
+     */
+    protected function parseAccessToken($body)
+    {
+        parse_str($body);
 
-		return json_decode($response->getBody(), true);
-	}
+        return $access_token;
+    }
 
-	/**
-	 * {@inheritdoc}
-	 */
-	public function mapUserToObject(array $user)
-	{
-		return (new User)->setRaw($user)->map([
-			'id' => $user['id'], 'nickname' => null, 'name' => $user['first_name'].' '.$user['last_name'],
-			'email' => $user['email'], 'avatar' => 'https://graph.facebook.com/'.$user['id'].'/picture?type=normal',
-		]);
-	}
+    /**
+     * {@inheritdoc}
+     */
+    protected function getUserByToken($token)
+    {
+        $appSecretProof = hash_hmac('sha256', $token, $this->clientSecret);
 
+        $response = $this->getHttpClient()->get($this->graphUrl.'/'.$this->version.'/me?access_token='.$token.'&appsecret_proof='.$appSecretProof.'&fields='.implode(',', $this->fields), [
+            'headers' => [
+                'Accept' => 'application/json',
+            ],
+        ]);
+
+        return json_decode($response->getBody(), true);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function mapUserToObject(array $user)
+    {
+        $avatarUrl = $this->graphUrl.'/'.$this->version.'/'.$user['id'].'/picture';
+
+        return (new User)->setRaw($user)->map([
+            'id' => $user['id'], 'nickname' => null, 'name' => isset($user['name']) ? $user['name'] : null,
+            'email' => isset($user['email']) ? $user['email'] : null, 'avatar' => $avatarUrl.'?type=normal',
+            'avatar_original' => $avatarUrl.'?width=1920',
+        ]);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function getCodeFields($state = null)
+    {
+        $fields = parent::getCodeFields($state);
+
+        if ($this->popup) {
+            $fields['display'] = 'popup';
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Set the user fields to request from Facebook.
+     *
+     * @param  array  $fields
+     * @return $this
+     */
+    public function fields(array $fields)
+    {
+        $this->fields = $fields;
+
+        return $this;
+    }
+
+    /**
+     * Set the dialog to be displayed as a popup.
+     *
+     * @return $this
+     */
+    public function asPopup()
+    {
+        $this->popup = true;
+
+        return $this;
+    }
 }

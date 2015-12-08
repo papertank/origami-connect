@@ -1,4 +1,6 @@
-<?php namespace Origami\Connect\Two;
+<?php 
+
+namespace Origami\Connect\Two;
 
 interface ProviderInterface {
 

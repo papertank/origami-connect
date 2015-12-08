@@ -1,3 +1,7 @@
-<?php namespace Origami\Connect\Two;
+<?php
 
-class InvalidStateException extends \InvalidArgumentException {}
+namespace Origami\Connect\Two;
+
+class InvalidStateException extends \InvalidArgumentException
+{
+}
