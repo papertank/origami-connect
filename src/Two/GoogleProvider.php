@@ -3,6 +3,7 @@
 namespace Origami\Connect\Two;
 
 use GuzzleHttp\ClientInterface;
+use Origami\Connect\Token;
 
 class GoogleProvider extends AbstractProvider implements ProviderInterface
 {
@@ -44,7 +45,7 @@ class GoogleProvider extends AbstractProvider implements ProviderInterface
      * Get the access token for the given code.
      *
      * @param  string  $code
-     * @return string
+     * @return Token
      */
     public function getAccessToken($code)
     {
@@ -73,7 +74,7 @@ class GoogleProvider extends AbstractProvider implements ProviderInterface
     /**
      * {@inheritdoc}
      */
-    protected function getUserByToken($token)
+    protected function getUserByToken(Token $token)
     {
         $response = $this->getHttpClient()->get('https://www.googleapis.com/plus/v1/people/me?', [
             'query' => [
@@ -81,7 +82,7 @@ class GoogleProvider extends AbstractProvider implements ProviderInterface
             ],
             'headers' => [
                 'Accept' => 'application/json',
-                'Authorization' => 'Bearer '.$token,
+                'Authorization' => 'Bearer '.$token->getToken(),
             ],
         ]);
 

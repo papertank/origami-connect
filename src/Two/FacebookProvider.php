@@ -2,6 +2,8 @@
 
 namespace Origami\Connect\Two;
 
+use Origami\Connect\Token;
+
 class FacebookProvider extends AbstractProvider implements ProviderInterface
 {
     /**
@@ -59,7 +61,7 @@ class FacebookProvider extends AbstractProvider implements ProviderInterface
      * Get the access token for the given code.
      *
      * @param  string  $code
-     * @return string
+     * @return Token
      */
     public function getAccessToken($code)
     {
@@ -67,7 +69,9 @@ class FacebookProvider extends AbstractProvider implements ProviderInterface
             'query' => $this->getTokenFields($code),
         ]);
 
-        return $this->parseAccessToken($response->getBody());
+        $token = $this->parseAccessToken($response->getBody());
+
+        return Token::make($token);
     }
 
     /**
@@ -83,11 +87,11 @@ class FacebookProvider extends AbstractProvider implements ProviderInterface
     /**
      * {@inheritdoc}
      */
-    protected function getUserByToken($token)
+    protected function getUserByToken(Token $token)
     {
         $appSecretProof = hash_hmac('sha256', $token, $this->clientSecret);
 
-        $response = $this->getHttpClient()->get($this->graphUrl.'/'.$this->version.'/me?access_token='.$token.'&appsecret_proof='.$appSecretProof.'&fields='.implode(',', $this->fields), [
+        $response = $this->getHttpClient()->get($this->graphUrl.'/'.$this->version.'/me?access_token='.$token->getToken().'&appsecret_proof='.$appSecretProof.'&fields='.implode(',', $this->fields), [
             'headers' => [
                 'Accept' => 'application/json',
             ],

@@ -3,6 +3,7 @@
 namespace Origami\Connect\Two;
 
 use Exception;
+use Origami\Connect\Token;
 
 class GithubProvider extends AbstractProvider implements ProviderInterface
 {
@@ -32,9 +33,9 @@ class GithubProvider extends AbstractProvider implements ProviderInterface
     /**
      * {@inheritdoc}
      */
-    protected function getUserByToken($token)
+    protected function getUserByToken(Token $token)
     {
-        $userUrl = 'https://api.github.com/user?access_token='.$token;
+        $userUrl = 'https://api.github.com/user?access_token='.$token->getToken();
 
         $response = $this->getHttpClient()->get(
             $userUrl, $this->getRequestOptions()
@@ -55,9 +56,9 @@ class GithubProvider extends AbstractProvider implements ProviderInterface
      * @param  string  $token
      * @return string|null
      */
-    protected function getEmailByToken($token)
+    protected function getEmailByToken(Token $token)
     {
-        $emailsUrl = 'https://api.github.com/user/emails?access_token='.$token;
+        $emailsUrl = 'https://api.github.com/user/emails?access_token='.$token->getToken();
 
         try {
             $response = $this->getHttpClient()->get(
