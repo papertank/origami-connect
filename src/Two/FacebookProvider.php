@@ -69,9 +69,7 @@ class FacebookProvider extends AbstractProvider implements ProviderInterface
             'query' => $this->getTokenFields($code),
         ]);
 
-        $token = $this->parseAccessToken($response->getBody());
-
-        return Token::make($token);
+        return $this->parseAccessToken($response->getBody());
     }
 
     /**
@@ -79,9 +77,9 @@ class FacebookProvider extends AbstractProvider implements ProviderInterface
      */
     protected function parseAccessToken($body)
     {
-        parse_str($body);
+        parse_str($body, $token);
 
-        return $access_token;
+        return Token::make($token);
     }
 
     /**
@@ -89,7 +87,7 @@ class FacebookProvider extends AbstractProvider implements ProviderInterface
      */
     protected function getUserByToken(Token $token)
     {
-        $appSecretProof = hash_hmac('sha256', $token, $this->clientSecret);
+        $appSecretProof = hash_hmac('sha256', $token->getToken(), $this->clientSecret);
 
         $response = $this->getHttpClient()->get($this->graphUrl.'/'.$this->version.'/me?access_token='.$token->getToken().'&appsecret_proof='.$appSecretProof.'&fields='.implode(',', $this->fields), [
             'headers' => [
