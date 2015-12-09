@@ -2,6 +2,7 @@
 
 namespace Origami\Connect\Two;
 
+use Exception;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use GuzzleHttp\ClientInterface;
@@ -244,6 +245,43 @@ abstract class AbstractProvider implements ProviderContract
         return [
             'client_id' => $this->clientId, 'client_secret' => $this->clientSecret,
             'code' => $code, 'redirect_uri' => $this->redirectUrl,
+        ];
+    }
+
+    /**
+     * Refresh the given access token
+     *
+     * @param Token $token
+     * @return Token
+     * @throws Exception
+     */
+    public function refreshAccessToken(Token $token)
+    {
+        if ( ! $token->getRefreshToken() ) {
+            throw new Exception('Invalid refresh token');
+        }
+
+        $postKey = (version_compare(ClientInterface::VERSION, '6') === 1) ? 'form_params' : 'body';
+
+        $response = $this->getHttpClient()->post($this->getTokenUrl(), [
+            'headers' => ['Accept' => 'application/json'],
+            $postKey => $this->getRefreshFields($token),
+        ]);
+
+        return $this->parseAccessToken($response->getBody());
+    }
+
+    /**
+     * Get the POST fields for the token refresh request.
+     *
+     * @param Token $token
+     * @return array
+     */
+    protected function getRefreshFields(Token $token)
+    {
+        return [
+            'client_id' => $this->clientId, 'client_secret' => $this->clientSecret,
+            'grant_type' => 'refresh_token', 'refresh_token' => $token->getRefreshToken()
         ];
     }
 
