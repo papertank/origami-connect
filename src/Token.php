@@ -80,7 +80,7 @@ class Token extends Model {
             $new = $this->getDriver()->refreshAccessToken($this);
 
             $this->fill([
-                'access_token' => $new->getToken(),
+                'token' => $new->getToken(),
                 'refresh_token' => $new->getRefreshToken(),
                 'expires_at' => $new->expires_at,
             ]);
