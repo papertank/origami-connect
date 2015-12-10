@@ -85,7 +85,7 @@ class FacebookProvider extends AbstractProvider implements ProviderInterface
     /**
      * {@inheritdoc}
      */
-    protected function getUserByToken(Token $token)
+    public function getUserByToken(Token $token)
     {
         $appSecretProof = hash_hmac('sha256', $token->getToken(), $this->clientSecret);
 
@@ -101,7 +101,7 @@ class FacebookProvider extends AbstractProvider implements ProviderInterface
     /**
      * {@inheritdoc}
      */
-    protected function mapUserToObject(array $user)
+    public function mapUserToObject(array $user)
     {
         $avatarUrl = $this->graphUrl.'/'.$this->version.'/'.$user['id'].'/picture';
 

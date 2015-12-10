@@ -113,7 +113,7 @@ abstract class AbstractProvider implements ProviderContract
      * @param Token $token
      * @return array
      */
-    abstract protected function getUserByToken(Token $token);
+    abstract public function getUserByToken(Token $token);
 
     /**
      * Map the raw user array to a User instance.
@@ -121,7 +121,7 @@ abstract class AbstractProvider implements ProviderContract
      * @param  array  $user
      * @return \Origami\Connect\Two\User
      */
-    abstract protected function mapUserToObject(array $user);
+    abstract public function mapUserToObject(array $user);
 
     /**
      * Redirect the user of the application to the provider's authentication screen.
