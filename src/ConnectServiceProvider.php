@@ -21,7 +21,7 @@ class ConnectServiceProvider extends ServiceProvider {
 	 */
 	public function register()
 	{
-		$this->app->bindShared('Origami\Connect\Contracts\Factory', function($app)
+		$this->app->singleton('Origami\Connect\Contracts\Factory', function($app)
 		{
 			return new ConnectManager($app);
 		});
