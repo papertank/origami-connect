@@ -19,7 +19,7 @@ class Auth extends Model {
 
     public function user()
     {
-    	return $this->belongsTo(config('auth.model'));
+    	return $this->belongsTo(config('auth.providers.users.model', 'App\\User'));
     }
 
     /* Scope */
